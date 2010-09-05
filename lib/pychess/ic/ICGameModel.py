@@ -38,10 +38,11 @@ class ICGameModel (GameModel):
             log.debug("TAKEBACK self.ply: %d, ply: %d" % (self.ply, ply))
             self.undoMoves(self.ply-ply)
     
-    def onGameEnded (self, bm, gameno, wname, bname, status, reason):
-        if gameno == self.gameno and len(self.players) >= 2 and wname == self.players[0].getICHandle() \
-           and bname == self.players[1].getICHandle():
-            self.end (status, reason)
+    def onGameEnded (self, bm, ficsgame):
+        if ficsgame.gameno == self.gameno and len(self.players) >= 2 and \
+           ficsgame.wplayer.name == self.players[0].getICHandle() and \
+           ficsgame.bplayer.name == self.players[1].getICHandle():
+            self.end(ficsgame.result, ficsgame.reason)
     
     def afterGameEnded (self, self_):
         if not self.inControl:
