@@ -1,4 +1,5 @@
 import os
+import sys
 import webbrowser
 import math
 import atexit
@@ -214,7 +215,7 @@ class PyChess:
         ionest.handler.connect("gmwidg_created",
                                GladeHandlers.__dict__["on_gmwidg_created"])
         
-        #---------------------- The only menuitems that need special initing
+        #---------------------- The only two menuitems that need special initing
         uistuff.keep(widgets["hint_mode"], "hint_mode")
         uistuff.keep(widgets["spy_mode"], "spy_mode")
         uistuff.keep(widgets["show_sidepanels"], "show_sidepanels")
@@ -276,6 +277,7 @@ class PyChess:
         #------------------------------------------------- Tip of the day dialog
         if conf.get("show_tip_at_startup", False):
             tipOfTheDay.TipOfTheDay.show()
+    
     
     def widgetHandler (self, glade, functionName, widgetName, s1, s2, i1, i2):
         # Tasker is currently the only widget that uses glades CustomWidget
