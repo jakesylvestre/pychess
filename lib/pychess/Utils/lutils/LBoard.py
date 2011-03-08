@@ -5,33 +5,9 @@ from pychess.Utils.const import *
 from ldata import *
 from attack import isAttacked
 from bitboard import *
+from PolyglotHash import *
 from threading import RLock
 from copy import deepcopy
-
-################################################################################
-# Zobrit hashing 32 bit implementation                                         #
-################################################################################
-
-from sys import maxint
-from random import randint
-
-pieceHashes = [[[0]*64 for i in range(7)] for j in range(2)]
-for color in WHITE, BLACK:
-    for piece in PAWN, KNIGHT, BISHOP, ROOK, QUEEN, KING:
-        for cord in range(64):
-            pieceHashes[color][piece][cord] = randint(0, maxint)
-
-epHashes = []
-for cord in range(64):
-    epHashes.append(randint(0, maxint))
-
-W_OOHash = randint(0, maxint)
-W_OOOHash = randint(0, maxint)
-B_OOHash = randint(0, maxint)
-B_OOOHash = randint(0, maxint)
-
-# Will be set each time black is on move
-colorHash = randint(0, maxint)
 
 # 50 moves rule is not hashed, as it is so rarly used and would greatly damage
 # our transposition table.
@@ -54,15 +30,16 @@ class LBoard:
         self._reset()
     
     def _reset (self):
+        """ Set board to empty on Black's turn (which Polyglot-hashes to 0) """
         self.blocker = createBoard(0)
         
         self.friends = [createBoard(0)]*2
         self.kings = [-1]*2
         self.boards = [[createBoard(0)]*7 for i in range(2)]
         
-        self.enpassant = -1
-        self.color = WHITE
-        self.castling = B_OOO | B_OO | W_OOO | W_OO
+        self.enpassant = None
+        self.color = BLACK
+        self.castling = 0
         self.hasCastled = [False, False]
         self.fifty = 0
         
@@ -75,7 +52,7 @@ class LBoard:
         self.pawnhash = 0
         
         ########################################################################
-        #  The format of history is a list of tupples of the following fields  #
+        #  The format of history is a list of tuples of the following fields   #
         #  move:       The move that was applied to get the position           #
         #  tpiece:     The piece the move captured, == EMPTY for normal moves  #
         #  enpassant:  cord which can be captured by enpassant or None         #
@@ -263,7 +240,6 @@ class LBoard:
             self.pawnhash ^= pieceHashes[color][PAWN][cord]
         elif piece == KING:
             self.kings[color] = cord
-        
         self.hash ^= pieceHashes[color][piece][cord]
         self.arBoard[cord] = piece
     
@@ -309,11 +285,23 @@ class LBoard:
         self.castling = castling
     
     def setEnpassant (self, epcord):
+        # Strip the square if there's no adjacent enemy pawn to make the capture
+        if epcord != None:
+            fwdPawns = self.boards[self.color][PAWN]
+            if self.color == WHITE:
+                fwdPawns >>= 8
+            else:
+                fwdPawns <<= 8
+            pawnTargets  = (fwdPawns & ~fileBits[0]) << 1;
+            pawnTargets |= (fwdPawns & ~fileBits[7]) >> 1;
+            if not pawnTargets & bitPosArray[epcord]:
+                epcord = None
+
         if self.enpassant == epcord: return
         if self.enpassant != None:
-            self.hash ^= epHashes[self.enpassant]
+            self.hash ^= epHashes[self.enpassant & 7]
         if epcord != None:
-            self.hash ^= epHashes[epcord]
+            self.hash ^= epHashes[epcord & 7]
         self.enpassant = epcord
     
     def applyMove (self, move):
@@ -395,69 +383,37 @@ class LBoard:
             self.fifty = 0
         
         # Clear castle flags
+        castling = self.castling
         if self.color == WHITE:
             if fpiece == KING:
-                if self.castling & W_OOO:
-                    self.hash ^= W_OOOHash
-                    self.castling &= ~W_OOO
-                    
-                if self.castling & W_OO:
-                    self.hash ^= W_OOHash
-                    self.castling &= ~W_OO
-                    
+                castling &= ~W_OOO
+                castling &= ~W_OO
             if fpiece == ROOK:
                 if fcord == self.ini_rooks[0][1]: #H1
-                    if self.castling & W_OO:
-                        self.hash ^= W_OOHash
-                        self.castling &= ~W_OO
-                    
+                    castling &= ~W_OO
                 elif fcord == self.ini_rooks[0][0]: #A1
-                    if self.castling & W_OOO:
-                        self.hash ^= W_OOOHash
-                        self.castling &= ~W_OOO
-            
+                    castling &= ~W_OOO
             if tpiece == ROOK:
                 if tcord == self.ini_rooks[1][1]: #H8
-                    if self.castling & B_OO:
-                        self.hash ^= B_OOHash
-                        self.castling &= ~B_OO
-            
+                    castling &= ~B_OO
                 elif tcord == self.ini_rooks[1][0]: #A8
-                    if self.castling & B_OOO:
-                        self.hash ^= B_OOOHash
-                        self.castling &= ~B_OOO
+                    castling &= ~B_OOO
         else:
             if fpiece == KING:
-                if self.castling & B_OOO:
-                    self.hash ^= B_OOOHash
-                    self.castling &= ~B_OOO
-                    
-                if self.castling & B_OO:
-                    self.hash ^= B_OOHash
-                    self.castling &= ~B_OO
-            
+                castling &= ~B_OOO
+                castling &= ~B_OO
             if fpiece == ROOK:
                 if fcord == self.ini_rooks[1][1]: #H8
-                    if self.castling & B_OO:
-                        self.hash ^= B_OOHash
-                        self.castling &= ~B_OO
-            
+                    castling &= ~B_OO
                 elif fcord == self.ini_rooks[1][0]: #A8
-                    if self.castling & B_OOO:
-                        self.hash ^= B_OOOHash
-                        self.castling &= ~B_OOO
-            
+                    castling &= ~B_OOO
             if tpiece == ROOK:
                 if tcord == self.ini_rooks[0][1]: #H1
-                    if self.castling & W_OO:
-                        self.hash ^= W_OOHash
-                        self.castling &= ~W_OO
-                    
+                    castling &= ~W_OO
                 elif tcord == self.ini_rooks[0][0]: #A1
-                    if self.castling & W_OOO:
-                        self.hash ^= W_OOOHash
-                        self.castling &= ~W_OOO
-        
+                    castling &= ~W_OOO
+        self.setCastling(castling)
+
         if not flag in PROMOTIONS:
             if self.variant == FISCHERRANDOMCHESS:
                 if flag in (KING_CASTLE, QUEEN_CASTLE):
@@ -629,7 +585,7 @@ class LBoard:
             b += "\n"
         return b
     
-    def asFen (self, useXFen=False):
+    def asFen (self):
         fenstr = []
         
         rows = [self.arBoard[i:i+8] for i in range(0,64,8)][::-1]
@@ -663,16 +619,6 @@ class LBoard:
         if not self.enpassant:
             fenstr.append("-")
         else:
-            fwdPawns = self.boards[self.color][PAWN]
-            if self.color == WHITE:
-                fwdPawns >>= 8
-            else:
-                fwdPawns <<= 8
-            pawnTargets  = (fwdPawns & ~fileBits[0]) << 1;
-            pawnTargets |= (fwdPawns & ~fileBits[7]) >> 1;
-            if useXFen and not pawnTargets & bitPosArray[self.enpassant]:
-                fenstr.append("-")
-            else:
                 fenstr.append(reprCord[self.enpassant])
         fenstr.append(" ")
         
@@ -706,7 +652,7 @@ class LBoard:
         copy.hash = self.hash
         copy.pawnhash = self.pawnhash
         
-        # We don't need to deepcopy the tupples, as they are imutable
+        # We don't need to deepcopy the tuples, as they are imutable
         copy.history = self.history[:]
         
         copy.ini_kings = self.ini_kings[:]
