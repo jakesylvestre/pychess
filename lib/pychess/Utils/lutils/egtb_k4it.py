@@ -9,10 +9,10 @@ from pychess.System.Log import log
 URL = "http://www.k4it.de/egtb/fetch.php?action=egtb&fen="
 expression = re.compile("(\d+)-(\d+)-?(\d+)?: (Win in \d+|Draw|Lose in \d+)")
 PROMOTION_FLAGS = {
-    8: QUEEN_PROMOTION,
-    9: ROOK_PROMOTION,
-    10: BISHOP_PROMOTION,
-    11: KNIGHT_PROMOTION
+    2: QUEEN_PROMOTION,
+    3: ROOK_PROMOTION,
+    4: BISHOP_PROMOTION,
+    5: KNIGHT_PROMOTION
 }
 
 table = {}
