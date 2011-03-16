@@ -405,22 +405,25 @@ def parseLAN (board, lan):
 # toAN                                                                         #
 ################################################################################
 
-def toAN (board, move, short=False):
+def toAN (board, move, short=False, UCI=False):
     """ Returns a Algebraic Notation string of a move
         board should be prior to the move
         
         short -- returns the short variant, e.g. f7f8q rather than f7f8=Q
+        UCI   -- returns the variant UCI expects (implies short)
     """
     s = reprCord[FCORD(move)] + reprCord[TCORD(move)]
-    if board.variant == FISCHERRANDOMCHESS:
-        flag = move >> 12
-        if flag == KING_CASTLE:
-            return "O-O"
-        elif flag == QUEEN_CASTLE:
-            return "O-O-O"
+    if board.variant == FISCHERRANDOMCHESS \
+        and FLAG(move) in (KING_CASTLE, QUEEN_CASTLE):
+        if UCI:
+            rooks = board.ini_rooks[board.color]
+            tcord = rooks[FLAG(move) == KING_CASTLE and 1 or 0]
+            s = reprCord[FCORD(move)] + reprCord[tcord]
+        else:
+            return FLAG(move) == KING_CASTLE and "O-O" or "O-O-O"
     
     if FLAG(move) in PROMOTIONS:
-        if short:
+        if short or UCI:
             s += reprSign[PROMOTE_PIECE(FLAG(move))].lower()
         else:
             s += "=" + reprSign[PROMOTE_PIECE(FLAG(move))]
@@ -560,3 +563,52 @@ def parseFAN (board, fan):
                     break
     
     return parseSAN (board, san)
+
+################################################################################
+# toPolyglot                                                                   #
+################################################################################
+
+def toPolyglot (board, move):
+    """ Returns a 16-bit Polyglot-format move 
+        board should be prior to the move
+    """
+    pg = move & 4095
+    if FLAG(move) in PROMOTIONS:
+        pg |= ( PROMOTE_PIECE(FLAG(move)) - 1 ) << 12
+    elif FLAG(move) == QUEEN_CASTLE:
+        pg = (pg & 4032) | board.ini_rooks[board.color][0]
+    elif FLAG(move) == KING_CASTLE:
+        pg = (pg & 4032) | board.ini_rooks[board.color][1]
+    
+    return pg
+
+################################################################################
+# parsePolyglot                                                                #
+################################################################################
+
+def parsePolyglot (board, pg):
+    """ Parse a 16-bit Polyglot-format move """
+    
+    tcord = TCORD(pg)
+    fcord = FCORD(pg)
+    flag = NORMAL_MOVE
+    if pg >> 12:
+        flag = FLAG_PIECE( (pg >> 12) + 1 )
+    elif board.arBoard[fcord] == KING:
+        if board.arBoard[tcord] == ROOK:
+            color = board.color
+            friends = board.friends[color]
+            if bitPosArray[tcord] & friends:
+                if board.ini_rooks[color][0] == tcord:
+                    flag = QUEEN_CASTLE
+                    if board.variant == NORMALCHESS: # Want e1c1/e8c8
+                        tcord += 2
+                else:
+                    flag = KING_CASTLE
+                    if board.variant == NORMALCHESS: # Want e1g1/e8g8
+                        tcord -= 1
+    elif board.arBoard[fcord] == PAWN and board.arBoard[tcord] == EMPTY and \
+            FILE(fcord) != FILE(tcord) and RANK(fcord) != RANK(tcord):
+        flag = ENPASSANT
+
+    return newMove (fcord, tcord, flag)
