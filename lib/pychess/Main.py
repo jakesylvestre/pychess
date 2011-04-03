@@ -215,8 +215,9 @@ class PyChess:
                                GladeHandlers.__dict__["on_gmwidg_created"])
         
         #---------------------- The only menuitems that need special initing
-        uistuff.keep(widgets["hint_mode"], "hint_mode")
-        uistuff.keep(widgets["spy_mode"], "spy_mode")
+        for widget in ("hint_mode", "spy_mode"):
+            widgets[widget].set_active(False)
+            widgets[widget].set_sensitive(False)
         uistuff.keep(widgets["show_sidepanels"], "show_sidepanels")
         
         #=======================================================================
