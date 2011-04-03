@@ -1,4 +1,4 @@
-<?xml version="1.0"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <glade-interface>
   <!-- interface-requires gtk+ 2.10 -->
   <!-- interface-naming-policy toplevel-contextual -->
@@ -354,7 +354,7 @@
                                               <widget class="GtkLabel" id="seek3RadioLabel">
                                                 <property name="visible">True</property>
                                                 <property name="xalign">0</property>
-                                                <property name="label" translatable="yes">2 min, Fischer Random, 1800&#x2193;, Black</property>
+                                                <property name="label" translatable="yes">2 min, Fischer Random, 1800↓, Black</property>
                                               </widget>
                                             </child>
                                           </widget>
@@ -373,7 +373,7 @@
                                               <widget class="GtkLabel" id="seek2RadioLabel">
                                                 <property name="visible">True</property>
                                                 <property name="xalign">0</property>
-                                                <property name="label" translatable="yes">10 min + 6 sec/move, 1400&#x2191;, White</property>
+                                                <property name="label" translatable="yes">10 min + 6 sec/move, 1400↑, White</property>
                                               </widget>
                                             </child>
                                           </widget>
@@ -1243,7 +1243,6 @@
     <property name="destroy_with_parent">True</property>
     <property name="icon_name">pychess</property>
     <property name="type_hint">normal</property>
-    <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox4">
         <property name="visible">True</property>
@@ -1272,7 +1271,7 @@
                             <property name="xpad">5</property>
                             <property name="ypad">5</property>
                             <property name="pixel_size">48</property>
-                            <property name="icon_name">appointment-soon</property>
+                            <property name="icon_name">stock_alarm</property>
                             <property name="icon-size">6</property>
                           </widget>
                           <packing>
@@ -1346,7 +1345,7 @@
                                               <widget class="GtkSpinButton" id="minutesSpin">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
-                                                <property name="invisible_char">&#x25CF;</property>
+                                                <property name="invisible_char">●</property>
                                                 <property name="adjustment">15 1 240 1 10 0</property>
                                               </widget>
                                               <packing>
@@ -1369,7 +1368,7 @@
                                               <widget class="GtkSpinButton" id="gainSpin">
                                                 <property name="visible">True</property>
                                                 <property name="can_focus">True</property>
-                                                <property name="invisible_char">&#x25CF;</property>
+                                                <property name="invisible_char">●</property>
                                                 <property name="adjustment">10 0 60 1 10 0</property>
                                               </widget>
                                               <packing>
@@ -1809,7 +1808,7 @@ b) you change the variant or the time control</property>
                                                         <property name="visible">True</property>
                                                         <property name="xalign">0</property>
                                                         <property name="xpad">1</property>
-                                                        <property name="label">&#xB1;200</property>
+                                                        <property name="label">±200</property>
                                                       </widget>
                                                     </child>
                                                   </widget>
@@ -2314,7 +2313,6 @@ b) you change the variant or the time control</property>
     <property name="destroy_with_parent">True</property>
     <property name="icon_name">pychess</property>
     <property name="type_hint">normal</property>
-    <property name="has_separator">False</property>
     <child internal-child="vbox">
       <widget class="GtkVBox" id="dialog-vbox2">
         <property name="visible">True</property>
