@@ -11,7 +11,6 @@ from pychess.System import conf, glock, uistuff, prefix, SubProcess, Log
 from pychess.System.uistuff import POSITION_NONE, POSITION_CENTER, POSITION_GOLDEN
 from pychess.System.Log import log, start_thread_dump
 from pychess.Utils.const import HINT, NAME, SPY
-from pychess.Utils import book # Kills pychess if no sqlite available
 from pychess.widgets import newGameDialog
 from pychess.widgets import tipOfTheDay
 from pychess.widgets import LogDialog
