@@ -17,7 +17,7 @@ import pychess
 from pychess.Utils.const import *
 from pychess.Utils.repr import reprResult_long, reprReason_long
 from pychess.Utils.book import getOpenings
-from pychess.Utils.lutils.lsearch import alphaBeta
+from pychess.Utils.lutils.lsearch import alphaBeta, enableEGTB
 from pychess.Utils.lutils import lsearch
 from pychess.Utils.lutils.lmove import *
 from pychess.Utils.lutils.LBoard import LBoard
@@ -37,7 +37,6 @@ class PyChess:
     def __init__ (self):
         self.sd = 10
         self.skipPruneChance = 0
-        self.useegtb = False
         
         self.increment = None
         self.mytime = None
@@ -74,30 +73,24 @@ class PyChess:
         return max(80-x,4)
     
     def __getBestOpening (self):
-        score = 0
-        move = None
-        for m, w, d, l in getOpenings(self.board):
-            s = (w+d/3.0)*random.random()
-            if not move or s > score:
-                move = m
-                score = s
-        return move
+        totalWeight = 0
+        choice = None
+        for move, weight, histGames, histScore in getOpenings(self.board):
+            totalWeight += weight
+            if not move or random.randrange(totalWeight) < weight:
+                choice = move
+        return choice
     
     def __go (self, worker):
         """ Finds and prints the best move from the current position """
         
-        # TODO: Length info should be put in the book.
-        # Btw. 10 is not enough. Try 20
-        #if len(self.board.history) < 14:
-        movestr = self.__getBestOpening()
-        if movestr:
-            mvs = [parseSAN(self.board, movestr)]
+        mv = self.__getBestOpening()
+        if mv:
+            mvs = [mv]
         
-        #if len(self.board.history) >= 14 or not movestr:
-        if not movestr:
+        if not mv:
                
             lsearch.skipPruneChance = self.skipPruneChance
-            lsearch.useegtb = self.useegtb
             lsearch.searching = True
             
             if self.mytime == None:
@@ -290,7 +283,7 @@ class PyChessCECP(PyChess):
             
             elif lines[0] == "egtb":
                 # This is a crafty command interpreted a bit loose
-                self.useegtb = True
+                enableEGTB()
             
             elif lines[0] == "level":
                 moves = int(lines[1])
@@ -428,7 +421,7 @@ class PyChessFICS(PyChess):
         self.colors = (WHITE, BLACK, None) 
         # The amount of random challenges, that PyChess sends with each seek
         self.challenges = 10
-        self.useegtb = True
+        enableEGTB()
         
         self.sudos = set()
         self.ownerOnline = False
