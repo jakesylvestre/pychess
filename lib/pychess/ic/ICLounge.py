@@ -508,7 +508,7 @@ class SeekTabSection (ParrentListSection):
         is_manual = False
         tooltiptext = SeekGraphSection.getSeekTooltipText(match["w"],
             match["rt"], is_computer, is_rated, is_manual, match["tp"],
-            match["t"], match["i"], rmin=match["rmin"], rmax=match["rmax"])
+            match["t"], match["i"])
         ti = self.store.prepend (["C"+index, self.chaPix, match["w"],
                                   int(match["rt"]), rated, match["tp"], time,
                                   float(match["t"] + "." + match["i"]),
