@@ -19,6 +19,7 @@ from pychess.widgets import ionest
 from pychess.widgets.ChatWindow import ChatWindow
 from pychess.widgets.SpotGraph import SpotGraph
 from pychess.widgets.ChainVBox import ChainVBox
+from pychess.widgets.preferencesDialog import SoundTab
 from pychess.Utils.const import *
 from pychess.Utils.repr import typeName
 from pychess.Utils.IconLoader import load_icon
@@ -499,6 +500,7 @@ class SeekTabSection (ParrentListSection):
         self.__updateActiveSeeksLabel()
 
     def onChallengeAdd (self, index, match):
+        SoundTab.playAction("aPlayerChecks")
         time = _("%(min)s min") % {'min': match["t"]}
         if match["i"] != "0":
             time += _(" + %(sec)s sec") % {'sec': match["i"]}
