@@ -13,7 +13,7 @@ from pychess.System.ThreadPool import PooledThread, pool
 from pychess.System.protoopen import protoopen, protosave, isWriteable
 from pychess.System.Log import log
 from pychess.System import glock
-from pychess.Utils.Move import Move
+from pychess.Utils.Move import Move, toSAN
 from pychess.Variants.normal import NormalChess
 
 from logic import getStatus, isClaimableDraw, playerHasMatingMaterial
@@ -92,6 +92,9 @@ class GameModel (GObject, PooledThread):
             "Month": today.month,
             "Day":   today.day
         }
+        self.gameno = 0
+        self.comment = ""
+        self.variations = [self.boards]
         
         # Keeps track of offers, so that accepts can be spotted
         self.offers = {}
@@ -171,7 +174,7 @@ class GameModel (GObject, PooledThread):
     
     def getMoveAtPly (self, ply):
         try:
-            return self.moves[self._plyToIndex(ply)]
+            return self.boards[self._plyToIndex(ply)+1].moveobj
         except IndexError:
             log.error("%d\t%d\t%d\t%d\n" % (self.lowply, ply, self.ply, len(self.moves)))
             raise
@@ -303,9 +306,10 @@ class GameModel (GObject, PooledThread):
         else: 
             chessfile = loader.load(uri)
         
+        self.gameno = gameno
         self.emit("game_loading", uri)
         try:
-            chessfile.loadToModel(gameno, position, self)
+            chessfile.loadToModel(gameno, position, self, False)
         #Postpone error raising to make games loadable to the point of the error
         except LoadingError, e:
             error = e
@@ -415,9 +419,18 @@ class GameModel (GObject, PooledThread):
                     (id(self), str(self.players), self.ply, str(move)))
                 self.needsSave = True
                 newBoard = self.boards[-1].move(move)
+                newBoard.prev = self.boards[-1]
+                if self.ply % 2 == 0:
+                    move_count = str((self.ply+1)/2 + 1)+"."
+                else:
+                    move_count = ""
+                newBoard.movestr = move_count + toSAN(self.boards[-1], move)
+                newBoard.moveobj = move
+                
+                self.boards[-1].next = newBoard
                 self.boards.append(newBoard)
                 self.moves.append(move)
-                
+
                 if self.timemodel:
                     self.timemodel.tap()
                     

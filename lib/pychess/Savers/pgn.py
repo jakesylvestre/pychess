@@ -142,11 +142,10 @@ def load (file):
     return PGNFile (files)
 
 
-def parse_string(string, model, board, position, parent=None, variation=False):
+def parse_string(string, model, board, position, variation=False):
     boards = []
 
     board = board.clone()
-    board.parent = parent
     last_board = board
     boards.append(board)
 
@@ -161,14 +160,13 @@ def parse_string(string, model, board, position, parent=None, variation=False):
         if group == VARIATION_END:
             parenthesis -= 1
             if parenthesis == 0:
-                v_last_board.variations.append(parse_string(v_string[:-1], model, board.previous, position, v_parent, True))
+                v_last_board.variations.append(parse_string(v_string[:-1], model, board.prev, position, variation=True))
                 v_string = ""
                 continue
 
         elif group == VARIATION_START:
             parenthesis += 1
             if parenthesis == 1:
-                v_parent = board.previous
                 v_last_board = last_board
 
         if parenthesis == 0:
@@ -193,6 +191,7 @@ def parse_string(string, model, board, position, parent=None, variation=False):
                     break
 
                 board = boards[-1].move(move)
+                board.moveobj = move
 
                 if m.group(MOVE_COUNT):
                     board.movestr = m.group(MOVE_COUNT).rstrip()
@@ -202,7 +201,7 @@ def parse_string(string, model, board, position, parent=None, variation=False):
                     board.movestr += m.group(MOVE_COMMENT)
 
                 if last_board:
-                    board.previous = last_board
+                    board.prev = last_board
                     last_board.next = board
 
                 boards.append(board)
@@ -210,16 +209,12 @@ def parse_string(string, model, board, position, parent=None, variation=False):
 
                 if not variation:
                     model.moves.append(move)
-                    model.boards.append(board)
 
             elif group == COMMENT_REST:
                 last_board.comments.append(text[1:])
 
             elif group == COMMENT_BRACE:
-                if board.parent is None and board.previous is None:
-                    model.comment = text[1:-1].replace('\r\n', ' ')
-                else:
-                    last_board.comments.append(text[1:-1].replace('\r\n', ' '))
+                last_board.comments.append(text[1:-1].replace('\r\n', ' '))
 
             elif group == COMMENT_NAG:
                 board.movestr += nag_replace(text)
@@ -284,6 +279,7 @@ class PGNFile (ChessFile):
                 model.boards = [Board(setup=True)]
 
         del model.moves[:]
+        del model.variations[:]
         model.status = WAITING_TO_START
         model.reason = UNKNOWN_REASON
 
@@ -311,6 +307,18 @@ class PGNFile (ChessFile):
         else:
             model.notation_string = self.games[gameno][1]
             model.boards = parse_string(model.notation_string, model, model.boards[-1], position)
+
+            def walk(node, path):
+                if node.next is None:
+                    model.variations.append(path+[node])
+                else:
+                    walk(node.next, path+[node])
+
+                if node.variations: 
+                    for vari in node.variations:
+                        walk(vari[1], list(path))
+
+            walk(model.boards[0], [])
 
         if model.timemodel:
             if quick_parse:
@@ -409,3 +417,34 @@ def nag_replace(nag):
     elif nag == "$20": return "+--"
     elif nag == "$21": return "--+"
     else: return nag
+
+
+KEEPENDS = True
+
+GAME = """
+[Event "?"]
+[Site "?"]
+[Date "????.??.??"]
+[Round "?"]
+[White "?"]
+[Black "?"]
+[Result "*"]
+
+{Initial main line comment}1. e4 e5 2. Nf3 {comment on move 2. Nf3}
+({Initial variation comment for 2.f4} 2. f4 d5)
+Nc6 (2... Nf6 3. Nc3 (3. d3 (3. Bc4)))
+({Initial variation comment for 2... d6} 2... d6) 3. Bc4
+""" 
+
+
+if __name__ == '__main__':
+    pgnfile = load(GAME.splitlines(KEEPENDS))
+
+    model = pgnfile.loadToModel(-1, quick_parse=True)
+    print model.moves
+    #print model.boards
+
+    model = pgnfile.loadToModel(-1, quick_parse=False)
+    print [board.moveobj for board in model.boards]
+    for path in model.variations:
+        print [board.movestr for board in path]
