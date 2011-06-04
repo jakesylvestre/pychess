@@ -7,7 +7,7 @@ from pychess.Utils.const import *
 from pychess.System import conf
 from pychess.System.glock import glock_connect
 from pychess.System.prefix import addDataPrefix
-from pychess.Utils.Move import toSAN, toFAN
+from pychess.Utils.lutils import lmove
 
 __title__ = _("Annotation")
 __active__ = True
@@ -60,6 +60,12 @@ class Sidepanel(gtk.TextView):
 
         self.gamemodel = gmwidg.board.view.model
         glock_connect(self.gamemodel, "game_loaded", self.game_loaded)
+
+        # Connect to preferences
+        
+        def figuresInNotationCallback (none):
+            self.update()
+        conf.notify_add("figuresInNotation", figuresInNotationCallback)
 
         return __widget__
 
@@ -131,6 +137,8 @@ class Sidepanel(gtk.TextView):
         buf = self.textbuffer
         end_iter = buf.get_end_iter # Convenience shortcut to the function
         new_line = False
+
+        fan = conf.get("figuresInNotation", False)
         
         while (1): 
             start = end_iter().get_offset()
@@ -151,7 +159,14 @@ class Sidepanel(gtk.TextView):
                 buf.insert(end_iter(), " ")
             
             ply += 1
-            buf.insert(end_iter(), node.movestr + " ")
+
+            movestr = node.movestr
+            if fan:
+                if node.color == BLACK:
+                    movestr = lmove.san2WhiteFanRegex.sub(lmove.san2WhiteFanFunc, node.movestr)
+                else:
+                    movestr = lmove.san2BlackFanRegex.sub(lmove.san2BlackFanFunc, node.movestr)
+            buf.insert(end_iter(), movestr + " ")
             
             startIter = buf.get_iter_at_offset(start)
             endIter = buf.get_iter_at_offset(end_iter().get_offset())
