@@ -137,7 +137,9 @@ class FICSConnection (Connection):
                                              "enter the server as",
                                              "Try again.")
                 if got == 0:
+                    self.client.sensitive = True
                     print >> self.client, self.password
+                    self.client.sensitive = False
                     self.registred = True
                 # No such name
                 elif got == 1:
