@@ -337,6 +337,8 @@ class BoardManager (GObject):
         else: return 0
     
     def onPlayGameCreated (self, matchlist):
+        log.debug("BM.onPlayGameCreated: %s\n%s\n" % 
+                  (matchlist[0].string, matchlist[1].string))
         wname, wrating, bname, brating, rated, type, min, inc = matchlist[0].groups()
         gameno, wname, bname, rated, type = matchlist[1].groups()
         style12 = matchlist[-1].groups()[0]
@@ -354,7 +356,8 @@ class BoardManager (GObject):
         wplayer = self.connection.players.get(FICSPlayer(wname))
         bplayer = self.connection.players.get(FICSPlayer(bname))
         for player, rating in ((wplayer, wrating), (bplayer, brating)):
-            if player.ratings[game_type.rating_type].elo != rating:
+            if game_type.rating_type in player.ratings and \
+                    player.ratings[game_type.rating_type].elo != rating:
                 player.ratings[game_type.rating_type].elo = rating
         game = FICSGame(wplayer, bplayer, gameno=gameno, rated=rated,
             game_type=game_type, min=int(min), inc=int(inc),

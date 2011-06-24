@@ -20,8 +20,8 @@ class GameType (object):
         return Variants.variants[self.variant_type]
     def __repr__ (self):
         s = "<GameType "
-        s += "fics_name=%s, " % self.fics_name
-        s += "short_fics_name=%s, " % self.short_fics_name
+        s += "fics_name='%s', " % self.fics_name
+        s += "short_fics_name='%s', " % self.short_fics_name
         s += "rating_type=%d, " % self.rating_type
         s += "variant_type=%d, " % self.variant_type
         s += "display_text='%s'>" % self.display_text
