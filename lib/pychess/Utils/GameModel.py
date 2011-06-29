@@ -192,7 +192,7 @@ class GameModel (GObject, PooledThread):
     
     def getMoveAtPly (self, ply):
         try:
-            return self.boards[self._plyToIndex(ply)+1].moveobj
+            return Move(self.boards[self._plyToIndex(ply)+1].board.history[-1][0])
         except IndexError:
             log.error("%d\t%d\t%d\t%d\n" % (self.lowply, ply, self.ply, len(self.moves)))
             raise
@@ -445,11 +445,9 @@ class GameModel (GObject, PooledThread):
                 newBoard = self.boards[-1].move(move)
                 newBoard.prev = self.boards[-1]
                 if self.ply % 2 == 0:
-                    move_count = str((self.ply+1)/2 + 1)+"."
+                    newBoard.movecount = str((self.ply+1)/2 + 1)+"."
                 else:
-                    move_count = ""
-                newBoard.movestr = move_count + toSAN(self.boards[-1], move)
-                newBoard.moveobj = move
+                    newBoard.movecount = ""
                 
                 self.boards = self.variations[0]
                 self.boards[-1].next = newBoard

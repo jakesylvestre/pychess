@@ -222,14 +222,12 @@ def parse_string(string, model, board, position, variation=False):
                     break
 
                 board = boards[-1].move(move)
-                board.moveobj = move
 
                 if m.group(MOVE_COUNT):
-                    board.movestr = m.group(MOVE_COUNT).rstrip()
-                board.movestr += mstr
+                    board.movecount = m.group(MOVE_COUNT).rstrip()
 
                 if m.group(MOVE_COMMENT):
-                    board.movestr += m.group(MOVE_COMMENT)
+                    board.punctuation += m.group(MOVE_COMMENT)
 
                 if last_board:
                     board.prev = last_board
@@ -248,7 +246,7 @@ def parse_string(string, model, board, position, variation=False):
                 last_board.comments.append(text[1:-1].replace('\r\n', ' '))
 
             elif group == COMMENT_NAG:
-                board.movestr += nag_replace(text)
+                board.punctuation += nag_replace(text)
 
             elif group == RESULT:
                 if text == "1/2":

@@ -7,7 +7,7 @@ from pychess.Utils.const import *
 from pychess.System import conf
 from pychess.System.glock import glock_connect
 from pychess.System.prefix import addDataPrefix
-from pychess.Utils.lutils import lmove
+from pychess.Utils.Move import Move, toSAN, toFAN
 
 __title__ = _("Annotation")
 __active__ = True
@@ -149,7 +149,7 @@ class Sidepanel(gtk.TextView):
             if not node:
                 break
             
-            if not node.movestr:
+            if not node.prev:
                 for comment in node.comments:
                     if node.ply == self.gamemodel.lowply:
                         self.insert_comment(comment + "\n", level)
@@ -351,11 +351,9 @@ class Sidepanel(gtk.TextView):
 
 
     def __movestr(self, node, fan):
+        move = Move(node.board.history[-1][0])
         if fan:
-            if node.color == BLACK:
-                movestr = lmove.san2WhiteFanRegex.sub(lmove.san2WhiteFanFunc, node.movestr)
-            else:
-                movestr = lmove.san2BlackFanRegex.sub(lmove.san2BlackFanFunc, node.movestr)
+            movestr = toFAN(node.prev, move)
         else:
-            movestr = node.movestr
-        return movestr
+            movestr =  toSAN(node.prev, move, True)
+        return "%s%s%s" % (node.movecount, movestr, node.punctuation)

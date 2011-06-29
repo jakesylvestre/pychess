@@ -22,8 +22,8 @@ class Board:
         self.data = [[None]*8 for i in xrange(8)]
         self.board = LBoard(self.variant)
 
-        self.movestr = ""    # algebraic notation of the move
-        self.moveobj = None
+        self.movecount = ""
+        self.punctuation = ""
         self.comments = []
         self.variations = []
         self.next = None
