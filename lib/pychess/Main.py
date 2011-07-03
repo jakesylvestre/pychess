@@ -231,8 +231,14 @@ class PyChess:
         widgets["Background"].show_all()
         
         flags = DEST_DEFAULT_MOTION | DEST_DEFAULT_HIGHLIGHT | DEST_DEFAULT_DROP
+        # To get drag in the whole window, we add it to the menu and the
+        # background. If it can be gotten to work, the drag_dest_set_proxy
+        # method is very interesting.
         widgets["menubar1"].drag_dest_set(flags, dnd_list, gtk.gdk.ACTION_COPY)
         widgets["Background"].drag_dest_set(flags, dnd_list, gtk.gdk.ACTION_COPY)
+        # The following two should really be set in the glade file
+        widgets["menubar1"].set_events(widgets["menubar1"].get_events() | gtk.gdk.DRAG_STATUS)
+        widgets["Background"].set_events(widgets["Background"].get_events() | gtk.gdk.DRAG_STATUS)
         
         #=======================================================================
         # Init 'minor' dialogs
