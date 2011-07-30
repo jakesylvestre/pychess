@@ -234,112 +234,6 @@ def load (file):
     return PGNFile (files)
 
 
-def parse_string(string, model, board, position, variation=False):
-    boards = []
-
-    board = board.clone()
-    last_board = board
-    boards.append(board)
-
-    error = None
-    parenthesis = 0
-    v_string = ""
-    prev_group = -1
-    for i, m in enumerate(re.finditer(pattern, string)):
-        group, text = m.lastindex, m.group(m.lastindex)
-        if parenthesis > 0:
-            v_string += ' '+text
-
-        if group == VARIATION_END:
-            parenthesis -= 1
-            if parenthesis == 0:
-                v_last_board.children.append(parse_string(v_string[:-1], model, board.prev, position, variation=True))
-                v_string = ""
-                prev_group = VARIATION_END
-                continue
-
-        elif group == VARIATION_START:
-            parenthesis += 1
-            if parenthesis == 1:
-                v_last_board = last_board
-
-        if parenthesis == 0:
-            if group == FULL_MOVE:
-                if not variation:
-                    if position != -1 and board.ply >= position:
-                        break
-
-                mstr = m.group(MOVE)
-                try:
-                    move = parseAny (boards[-1], mstr)
-                except ParsingError, e:
-                    notation, reason, boardfen = e.args
-                    ply = boards[-1].ply
-                    if ply % 2 == 0:
-                        moveno = "%d." % (ply/2+1)
-                    else: moveno = "%d..." % (ply/2+1)
-                    errstr1 = _("The game can't be read to end, because of an error parsing move %(moveno)s '%(notation)s'.") % {
-                                'moveno': moveno, 'notation': notation}
-                    errstr2 = _("The move failed because %s.") % reason
-                    error = LoadingError (errstr1, errstr2)
-                    break
-
-                board = boards[-1].move(move)
-
-                #if m.group(MOVE_COUNT):
-                ply = boards[-1].ply
-                if ply % 2 == 0:
-                    mvcount = "%d." % (ply/2+1)
-                elif prev_group != FULL_MOVE:
-                    mvcount = "%d..." % (ply/2+1)
-                else:
-                    mvcount = ""        
-                board.movecount = mvcount
-
-                if m.group(MOVE_COMMENT):
-                    board.nags.append(symbol2nag(m.group(MOVE_COMMENT)))
-
-                if last_board:
-                    board.prev = last_board
-                    last_board.next = board
-
-                boards.append(board)
-                last_board = board
-
-                if not variation:
-                    model.moves.append(move)
-
-            elif group == COMMENT_REST:
-                last_board.children.append(text[1:])
-
-            elif group == COMMENT_BRACE:
-                comm = text.replace('{\r\n', '{').replace('\r\n}', '}')
-                comm = comm[1:-1].splitlines()
-                comment = ' '.join([line.strip() for line in comm])
-                last_board.children.append(comment)
-
-            elif group == COMMENT_NAG:
-                board.nags.append(text)
-
-            elif group == RESULT:
-                if text == "1/2":
-                    model.status = reprResult.index("1/2-1/2")
-                else:
-                    model.status = reprResult.index(text)
-                break
-
-            else:
-                print "Unknown:",text
-
-        if group != COMMENT_NAG:
-            prev_group = group
-
-        if error:
-            raise error
-
-    return boards
-
-
 class PGNFile (ChessFile):
 
     def __init__ (self, games):
@@ -406,8 +300,7 @@ class PGNFile (ChessFile):
 #                model.timemodel.gain = gain
         
         fenstr = self._getTag(gameno, "FEN")
-        variant = self._getTag(gameno, "Variant")
-        if variant and ("fischer" in variant.lower() or "960" in variant):
+        if self.get_variant(gameno):
             from pychess.Variants.fischerandom import FRCBoard
             model.variant = FischerRandomChess
             model.boards = [FRCBoard(fenstr)]
@@ -442,9 +335,9 @@ class PGNFile (ChessFile):
                 model.moves.append(move)
                 model.boards.append(model.boards[-1].move(move))
         else:
-            notation_string = self.games[gameno][1]
-            model.boards = parse_string(notation_string, model, model.boards[-1], position)
-
+            movetext = self.get_movetext(gameno)
+            model.boards = self.parse_string(movetext, model, model.boards[-1], position)
+            
             def walk(node, path):
                 if node.next is None:
                     model.variations.append(path+[node])
@@ -510,6 +403,13 @@ class PGNFile (ChessFile):
             else:
                 return None
 
+    def get_movetext(self, no):
+        return self.games[no][1]
+
+    def get_variant(self, no):
+        variant = self._getTag(no, "Variant")
+        return 1 if variant and ("fischer" in variant.lower() or "960" in variant) else 0
+
     def get_player_names (self, no):
         p1 = self._getTag(no,"White") and self._getTag(no,"White") or "Unknown"
         p2 = self._getTag(no,"Black") and self._getTag(no,"Black") or "Unknown"
@@ -549,6 +449,111 @@ class PGNFile (ChessFile):
         if self._getTag(no,"Result") in pgn2Const:
             return pgn2Const[self._getTag(no,"Result")]
         return RUNNING
+
+    def parse_string(self, string, model, board, position, variation=False):
+        boards = []
+
+        board = board.clone()
+        last_board = board
+        boards.append(board)
+
+        error = None
+        parenthesis = 0
+        v_string = ""
+        prev_group = -1
+        for i, m in enumerate(re.finditer(pattern, string)):
+            group, text = m.lastindex, m.group(m.lastindex)
+            if parenthesis > 0:
+                v_string += ' '+text
+
+            if group == VARIATION_END:
+                parenthesis -= 1
+                if parenthesis == 0:
+                    v_last_board.children.append(self.parse_string(v_string[:-1], model, board.prev, position, variation=True))
+                    v_string = ""
+                    prev_group = VARIATION_END
+                    continue
+
+            elif group == VARIATION_START:
+                parenthesis += 1
+                if parenthesis == 1:
+                    v_last_board = last_board
+
+            if parenthesis == 0:
+                if group == FULL_MOVE:
+                    if not variation:
+                        if position != -1 and board.ply >= position:
+                            break
+
+                    mstr = m.group(MOVE)
+                    try:
+                        move = parseAny (boards[-1], mstr)
+                    except ParsingError, e:
+                        notation, reason, boardfen = e.args
+                        ply = boards[-1].ply
+                        if ply % 2 == 0:
+                            moveno = "%d." % (ply/2+1)
+                        else: moveno = "%d..." % (ply/2+1)
+                        errstr1 = _("The game can't be read to end, because of an error parsing move %(moveno)s '%(notation)s'.") % {
+                                    'moveno': moveno, 'notation': notation}
+                        errstr2 = _("The move failed because %s.") % reason
+                        error = LoadingError (errstr1, errstr2)
+                        break
+
+                    board = boards[-1].move(move)
+
+                    ply = boards[-1].ply
+                    if ply % 2 == 0:
+                        mvcount = "%d." % (ply/2+1)
+                    elif prev_group != FULL_MOVE:
+                        mvcount = "%d..." % (ply/2+1)
+                    else:
+                        mvcount = ""        
+                    board.movecount = mvcount
+
+                    if m.group(MOVE_COMMENT):
+                        board.nags.append(symbol2nag(m.group(MOVE_COMMENT)))
+
+                    if last_board:
+                        board.prev = last_board
+                        last_board.next = board
+
+                    boards.append(board)
+                    last_board = board
+
+                    if not variation:
+                        model.moves.append(move)
+
+                elif group == COMMENT_REST:
+                    last_board.children.append(text[1:])
+
+                elif group == COMMENT_BRACE:
+                    comm = text.replace('{\r\n', '{').replace('\r\n}', '}')
+                    comm = comm[1:-1].splitlines()
+                    comment = ' '.join([line.strip() for line in comm])
+                    last_board.children.append(comment)
+
+                elif group == COMMENT_NAG:
+                    board.nags.append(text)
+
+                elif group == RESULT:
+                    if text == "1/2":
+                        model.status = reprResult.index("1/2-1/2")
+                    else:
+                        model.status = reprResult.index(text)
+                    break
+
+                else:
+                    print "Unknown:",text
+
+            if group != COMMENT_NAG:
+                prev_group = group
+
+            if error:
+                raise error
+
+        return boards
+
 
 nag2symbolDict = {
     "$0": "",
