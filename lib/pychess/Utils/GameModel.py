@@ -13,6 +13,7 @@ from pychess.System.ThreadPool import PooledThread, pool
 from pychess.System.protoopen import protoopen, protosave, isWriteable
 from pychess.System.Log import log
 from pychess.Utils.Move import Move, toSAN
+from pychess.Utils.eco import eco_lookup
 from pychess.Variants.normal import NormalChess
 from pychess.Variants import variants
 
@@ -93,6 +94,8 @@ class GameModel (GObject, PooledThread):
         "players_changed":  (SIGNAL_RUN_FIRST, TYPE_NONE, ()),
         # spectators_changed is emitted if the spectators list was changed.
         "spectators_changed":  (SIGNAL_RUN_FIRST, TYPE_NONE, ()),
+        # opening_changed is emitted if the move changed the opening.
+        "opening_changed":  (SIGNAL_RUN_FIRST, TYPE_NONE, ()),
     }
     
     def __init__ (self, timemodel=None, variant=NormalChess):
@@ -188,6 +191,14 @@ class GameModel (GObject, PooledThread):
         assert self.status == WAITING_TO_START
         self.spectators = spectators
         self.emit("spectators_changed")
+
+    def setOpening(self):
+        if self.isMainlineBoard(self.ply):
+            opening = eco_lookup.get(self.getBoardAtPly(self.ply).asFen())
+            if opening is not None:
+                self.tags["ECO"] = opening[0]
+                self.tags["Opening"] = opening[1]
+                self.emit("opening_changed")
     
     ############################################################################
     # Board stuff                                                              #
@@ -507,7 +518,9 @@ class GameModel (GObject, PooledThread):
 
                 if self.timemodel:
                     self.timemodel.tap()
-                    
+                
+                self.setOpening()
+                
                 self.checkStatus()
                 
                 self.emit("game_changed")
