@@ -99,7 +99,6 @@ class PyChess:
             
             if self.mytime == None:
                 lsearch.endtime = sys.maxint
-                worker.publish("Searching to depth %d without timelimit" % self.sd)
                 mvs, self.scr = alphaBeta (self.board, self.sd)
             
             else:
@@ -120,30 +119,24 @@ class PyChess:
                 for depth in range(1, self.sd+1):
                     # Heuristic time saving
                     # Don't waste time, if the estimated isn't enough to complete next depth
-                    if usetime > prevtime*4 or usetime <= 1:
-                        lsearch.timecheck_counter = lsearch.TIMECHECK_FREQ
-                        search_result = alphaBeta(self.board, depth)
-                        if lsearch.searching:
-                            mvs, self.scr = search_result
-                            if time() > lsearch.endtime:
-                                # Endtime occured after depth
-                                worker.publish("Endtime occured after depth")
-                                break
-                            worker.publish("got moves %s from depth %d" % (" ".join(listToSan(self.board, mvs)), depth))
-                        else:
-                            # We were interrupted
-                            worker.publish("I was interrupted (%d) while searching depth %d" % (lsearch.last, depth))
-                            if depth == 1:
-                                worker.publish("I've got to have some move, so I use what we got")
-                                mvs, self.scr = search_result
-                            break
-                        prevtime = time()-starttime - prevtime
-                    else:
-                        worker.publish("I don't have enough time to go into depth %d" % depth)
-                        # Not enough time for depth
+                    if usetime <= prevtime*4 and usetime > 1:
                         break
-                else:
-                    worker.publish("I searched through depths [1, %d]" % (self.sd+1))
+                    lsearch.timecheck_counter = lsearch.TIMECHECK_FREQ
+                    search_result = alphaBeta(self.board, depth)
+                    if lsearch.searching:
+                        mvs, self.scr = search_result
+                        if time() > lsearch.endtime:
+                            break
+                        if self.post:
+                            movstrs = " ".join(listToSan(self.board, mvs))
+                            worker.publish("\t".join(("%d","%d","%0.2f","%d","%s")) %
+                                           (depth, self.scr, time()-starttime, lsearch.nodes, movstrs))
+                    else:
+                        # We were interrupted
+                        if depth == 1:
+                            mvs, self.scr = search_result
+                        break
+                    prevtime = time()-starttime - prevtime
                 
                 self.mytime -= time() - starttime
                 self.mytime += self.increment
@@ -172,8 +165,6 @@ class PyChess:
                     else: worker.publish("result %s" % reprResult[BLACKWON])
                 worker.publish("last: %d %d" % (lsearch.last, self.scr))
                 return
-            
-            worker.publish("moves were: %s %d" % (" ".join(listToSan(self.board, mvs)), self.scr))
             
             lsearch.movesearches = 0
             lsearch.nodes = 0
@@ -373,8 +364,13 @@ class PyChessCECP(PyChess):
                 if self.analyzing:
                     self.__analyze()
             
-            elif lines[0] in ("xboard", "otim", "hard", "easy", "nopost", "post",
-                              "accepted", "rejected"):
+            elif lines[0] == "post":
+                self.post = True
+            
+            elif lines[0] == "nopost":
+                self.post = False
+            
+            elif lines[0] in ("xboard", "otim", "hard", "easy", "accepted", "rejected"):
                 pass
             
             else: print "Warning (unknown command):", line
