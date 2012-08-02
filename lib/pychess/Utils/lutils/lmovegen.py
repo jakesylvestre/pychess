@@ -63,7 +63,7 @@ def genPieceMoves(board, piece, tcord):
     """"
     Used by parseSAN only to accelerate it a bit
     """
-    
+    moves = []
     friends = board.friends[board.color]
     notfriends = ~friends
     if piece == KNIGHT:
@@ -71,40 +71,44 @@ def genPieceMoves(board, piece, tcord):
         knightMoves = moveArray[KNIGHT]
         for fcord in iterBits(knights):
             if tcord in iterBits(knightMoves[fcord] & notfriends):
-                yield newMove(fcord, tcord)
-
-    elif piece == BISHOP:
+                moves.append(newMove(fcord, tcord))
+        return moves
+        
+    if piece == BISHOP:
         blocker = board.blocker
         bishops = board.boards[board.color][BISHOP]
         for fcord in iterBits(bishops):
             attackBoard = attack45 [fcord][ray45 [fcord] & blocker] | \
                           attack135[fcord][ray135[fcord] & blocker]
             if tcord in iterBits(attackBoard & notfriends):
-                yield newMove(fcord, tcord)
-
-    elif piece == ROOK:
+                moves.append(newMove(fcord, tcord))
+        return moves
+        
+    if piece == ROOK:
         blocker = board.blocker
         rooks = board.boards[board.color][ROOK]
         for fcord in iterBits(rooks):
             attackBoard = attack00[fcord][ray00[fcord] & blocker] | \
                           attack90[fcord][ray90[fcord] & blocker]
             if tcord in iterBits(attackBoard & notfriends):
-                yield newMove(fcord, tcord)
+                moves.append(newMove(fcord, tcord))
+        return moves
 
-    elif piece == QUEEN:
+    if piece == QUEEN:
         blocker = board.blocker
         queens = board.boards[board.color][QUEEN]
         for fcord in iterBits(queens):
             attackBoard = attack45 [fcord][ray45 [fcord] & blocker] | \
                           attack135[fcord][ray135[fcord] & blocker]
             if tcord in iterBits(attackBoard & notfriends):
-                yield newMove(fcord, tcord)
+                moves.append(newMove(fcord, tcord))
 
         for fcord in iterBits(queens):
             attackBoard = attack00[fcord][ray00[fcord] & blocker] | \
                           attack90[fcord][ray90[fcord] & blocker]
             if tcord in iterBits(attackBoard & notfriends):
-                yield newMove(fcord, tcord)
+                moves.append(newMove(fcord, tcord))
+        return moves
 
 def genAllMoves (board):
     

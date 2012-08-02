@@ -354,17 +354,16 @@ def parseSAN (board, san):
         else:
             # We find all pieces who could have done it. (If san was legal, there should
             # never be more than one)
-            moves = [move for move in genPieceMoves(board, piece, tcord)]
-            if moves:
-                if len(moves) == 1:
-                    return moves[0]
-                else:
-                    for move in moves:
-                        board_clone = board.clone()
-                        board_clone.applyMove(move)
-                        if board_clone.opIsChecked():
-                            continue
-                        return move
+            moves = genPieceMoves(board, piece, tcord)
+            if len(moves) == 1:
+                return moves[0]
+            else:
+                for move in moves:
+                    board_clone = board.clone()
+                    board_clone.applyMove(move)
+                    if board_clone.opIsChecked():
+                        continue
+                    return move
     
     errstring = "no %s is able to move to %s" % (reprPiece[piece], reprCord[tcord])
     raise ParsingError, (san, errstring, board.asFen())
