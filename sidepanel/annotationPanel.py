@@ -15,7 +15,7 @@ from pychess.Savers.pgnbase import nag2symbol
 
 __title__ = _("Annotation")
 __active__ = True
-__icon__ = addDataPrefix("glade/panel_moves.svg")
+__icon__ = addDataPrefix("glade/panel_annotation.svg")
 __desc__ = _("Annotated game")
 
 
