@@ -885,6 +885,7 @@ along with PyChess; if not, write to the Free Software Foundation, Inc.,
                                 <child>
                                   <object class="GtkVButtonBox" id="vbuttonbox1">
                                     <property name="can_focus">False</property>
+                                    <property name="visible">True</property>
                                     <property name="spacing">3</property>
                                     <property name="layout_style">start</property>
                                     <child>
@@ -892,7 +893,7 @@ along with PyChess; if not, write to the Free Software Foundation, Inc.,
                                         <property name="label">gtk-add</property>
                                         <property name="use_action_appearance">False</property>
                                         <property name="visible">True</property>
-                                        <property name="sensitive">False</property>
+                                        <property name="sensitive">True</property>
                                         <property name="can_focus">True</property>
                                         <property name="can_default">True</property>
                                         <property name="receives_default">False</property>

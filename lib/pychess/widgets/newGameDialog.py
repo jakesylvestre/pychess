@@ -69,23 +69,34 @@ skillToIconLarge = {
 
 playerItems = []
 smallPlayerItems = []
+analyzerItems = []
 
 def createPlayerUIGlobals (discoverer):
     global playerItems
     global smallPlayerItems
+    global analyzerItems
+
+    playerItems = []
+    smallPlayerItems = []
+    analyzerItems = []
+
     for variantClass in variants.values():
-        playerItems += [ [(ipeople, _("Human Being"))] ]
-        smallPlayerItems += [ [(speople, _("Human Being"))] ]
-    for engine in discoverer.getEngines().values():
+        playerItems += [ [(ipeople, _("Human Being"), "")] ]
+        smallPlayerItems += [ [(speople, _("Human Being"), "")] ]
+    for binname, engine in discoverer.getEngines().items():
         name = discoverer.getName(engine)
         c = discoverer.getCountry(engine)
         path = addDataPrefix("flags/%s.png" % c)
         if c and os.path.isfile(path):
             flag_icon = gtk.gdk.pixbuf_new_from_file(path)
-        else: flag_icon = inotebook
+        else:
+            path = addDataPrefix("flags/unknown.png")
+            flag_icon = gtk.gdk.pixbuf_new_from_file(path)
         for variant in discoverer.getEngineVariants(engine):
-            playerItems[variant] += [(flag_icon, name)]
-            smallPlayerItems[variant] += [(snotebook, name)]
+            playerItems[variant] += [(flag_icon, name, binname)]
+            smallPlayerItems[variant] += [(snotebook, name, binname)]
+        if discoverer.is_analyzer(engine):
+            analyzerItems.append((flag_icon, name, binname))
 
 discoverer.connect("all_engines_discovered", createPlayerUIGlobals)
 
@@ -109,10 +120,8 @@ class _GameInitializationMode:
     def _init (cls):
         cls.widgets = uistuff.GladeWidgets ("newInOut.glade")
 
-        uistuff.createCombo(cls.widgets["whitePlayerCombobox"],
-                            (i[:2] for i in playerItems[0]))
-        uistuff.createCombo(cls.widgets["blackPlayerCombobox"],
-                            (i[:2] for i in playerItems[0]))
+        uistuff.createCombo(cls.widgets["whitePlayerCombobox"], playerItems[0])
+        uistuff.createCombo(cls.widgets["blackPlayerCombobox"], playerItems[0])
 
         cls.widgets["playersIcon"].set_from_pixbuf(big_people)
         cls.widgets["timeIcon"].set_from_pixbuf(big_time)

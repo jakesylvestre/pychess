@@ -6,6 +6,7 @@ from xml.dom import minidom
 import gtk
 
 from pychess.System.prefix import addDataPrefix, getUserDataPrefix
+from pychess.System.glock import glock_connect_after
 from pychess.System import conf, gstreamer, uistuff
 from pychess.Players.engineNest import discoverer
 from pychess.Utils.const import *
@@ -67,43 +68,37 @@ class GeneralTab:
 
 class EngineTab:
     def __init__ (self, widgets):
+        self.widgets = widgets
         # Put engines in trees and combos
         
-        engines = discoverer.getEngines()
-        allstore = gtk.ListStore(gtk.gdk.Pixbuf, str)
-        for engine in engines.values():
-            c = discoverer.getCountry(engine)
-            if c:
-                flag = addDataPrefix("flags/%s.png" % c)
-            if not c or not os.path.isfile(flag):
-                flag = addDataPrefix("flags/unknown.png")
-            flag_icon = gtk.gdk.pixbuf_new_from_file(flag)
-            allstore.append((flag_icon, discoverer.getName(engine)))
+        allstore = gtk.ListStore(gtk.gdk.Pixbuf, str, str)
         
-        tv = widgets["engines_treeview"]
-        tv.set_model(allstore)
-        tv.append_column(gtk.TreeViewColumn(
+        self.tv = widgets["engines_treeview"]
+        self.tv.set_model(allstore)
+        self.tv.append_column(gtk.TreeViewColumn(
                 _("Flag"), gtk.CellRendererPixbuf(), pixbuf=0))
-        tv.append_column(gtk.TreeViewColumn(
+        self.tv.append_column(gtk.TreeViewColumn(
                 _("Name"), gtk.CellRendererText(), text=1))
-        
-        analyzers = list(discoverer.getAnalyzers())
-        ana_data = []
-        invana_data = []
-        for engine in analyzers:
-            name = discoverer.getName(engine)
-            c = discoverer.getCountry(engine)
-            if c:
-                flag = addDataPrefix("flags/%s.png" % c)
-            if not c or not os.path.isfile(flag):
-                flag = addDataPrefix("flags/unknown.png")
-            flag_icon = gtk.gdk.pixbuf_new_from_file(flag)
-            ana_data.append((flag_icon, name))
-            invana_data.append((flag_icon, name))
-        
-        uistuff.createCombo(widgets["ana_combobox"], ana_data)
-        uistuff.createCombo(widgets["inv_ana_combobox"], invana_data)
-        
+
+        from pychess.widgets import newGameDialog
+        def update_store(discoverer, store):
+            store.clear()
+            for icon, name, binname in newGameDialog.playerItems[0][1:]:
+                store.append((icon, name, binname))
+        glock_connect_after(discoverer, "all_engines_discovered",
+                            update_store, allstore)
+        update_store(discoverer, allstore)
+
+        uistuff.createCombo(widgets["ana_combobox"], [])
+        uistuff.createCombo(widgets["inv_ana_combobox"], [])
+
+        def update_analyzers_store(discoverer):
+            uistuff.updateCombo(widgets["ana_combobox"], newGameDialog.analyzerItems)
+            uistuff.updateCombo(widgets["inv_ana_combobox"], newGameDialog.analyzerItems)
+        glock_connect_after(discoverer, "all_engines_discovered",
+                            update_analyzers_store)
+        update_analyzers_store(discoverer)
+
         # Save, load and make analyze combos active
         
         conf.set("ana_combobox", conf.get("ana_combobox", 0))
@@ -143,9 +138,9 @@ class EngineTab:
         
         #=======================================================================
         # tv = widgets["optionview"]
-        # tv.append_column(gtk.TreeViewColumn(
+        # self.tv.append_column(gtk.TreeViewColumn(
         #    "Option", gtk.CellRendererText(), text=0))
-        # tv.append_column(gtk.TreeViewColumn(
+        # self.tv.append_column(gtk.TreeViewColumn(
         #    "Value", gtk.CellRendererText(), text=1))
         # 
         # def edit (button):
@@ -164,7 +159,7 @@ class EngineTab:
         #        
         #        optionsstore = gtk.ListStore(str, str)
         #        tv = widgets["optionview"]
-        #        tv.set_model(optionsstore)
+        #        self.tv.set_model(optionsstore)
         #        
         #        for option in optionstags[0].childNodes:
         #            if option.nodeType != option.ELEMENT_NODE: continue
@@ -179,8 +174,71 @@ class EngineTab:
         #    dialog.hide()
         # widgets["edit_engine_button"].connect("clicked", edit)
         #=======================================================================
-        #widgets["remove_engine_button"].connect("clicked", remove)
-        #widgets["add_engine_button"].connect("clicked", add)
+
+        self.tv.get_selection().connect('changed', self.selection_changed)
+
+        def remove(button):
+            store, iter = self.tv.get_selection().get_selected()
+            if iter:
+                row = allstore.get_path(iter)[0]
+                binname = allstore[row][2]
+                engine = discoverer.getEngines()[binname]
+                discoverer.dom.getroot().remove(engine)
+                del discoverer.getEngines()[binname]
+                discoverer.need_save = True
+                discoverer.start()
+        
+        widgets["remove_engine_button"].connect("clicked", remove)
+
+        def add(button):
+            dialog = gtk.FileChooserDialog(_("Select engine"), None, gtk.FILE_CHOOSER_ACTION_OPEN,
+                (gtk.STOCK_CANCEL, gtk.RESPONSE_CANCEL, gtk.STOCK_OPEN, gtk.RESPONSE_OK))
+            response = dialog.run()
+            if response == gtk.RESPONSE_OK:
+                new_engine = dialog.get_filename()
+                if os.access(new_engine, os.R_OK|os.X_OK):
+                    from subprocess import Popen, PIPE
+                    proc = Popen(new_engine, stdin=PIPE, stdout=PIPE)
+                    proc.stdin.write("uci\n")
+                    proc.stdin.flush()
+
+                    is_uci = False
+                    #works in python 3.0+
+                    #for line in proc.stdout:
+                    for line in iter(proc.stdout.readline,''):
+                        line = line.rstrip()
+                        if line == "uciok":
+                            is_uci = True
+                            print "uci"
+                            break
+                        elif "Error" in line or "Illegal" in line:
+                            print "not uci"
+                            break
+                    proc.terminate()
+
+                    from xml.etree.ElementTree import fromstring
+                    engine = fromstring('<engine></engine>')
+
+                    path, binname = os.path.split(new_engine)
+                    engine.set('binname', binname)
+                    if is_uci:
+                        engine.set('protocol', 'uci')
+                        engine.set('protover', '1')
+                    else:
+                        engine.set('protocol', 'cecp')
+                        engine.set('protover', '2')
+                    engine.append(fromstring('<path>%s</path>' % path))
+
+                    discoverer.getEngines()[binname] = engine
+                    discoverer.dom.getroot().append(engine)
+                    discoverer.start()
+                else:
+                    print "not an executable"
+            elif response == gtk.RESPONSE_CANCEL:
+                print 'Closed, no files selected'
+            dialog.destroy()
+
+        widgets["add_engine_button"].connect("clicked", add)
         
         # Give widgets to keeper
         
@@ -225,6 +283,9 @@ class EngineTab:
         uistuff.keep(widgets["inv_ana_combobox"], "inv_ana_combobox", get_value,
             lambda combobox, value: set_value(combobox, value, "spy_mode",
                                               "inv_analyzer_check", SPY))
+
+    def selection_changed(self, treeselection):
+        self.widgets['remove_engine_button'].set_sensitive(True)
         
 ################################################################################
 # Sound initing                                                                #

@@ -14,9 +14,13 @@ from pychess.widgets.ToggleComboBox import ToggleComboBox
 
 
 def createCombo (combo, data):
-    ls = gtk.ListStore(gtk.gdk.Pixbuf, str)
-    for icon, label in data:
-        ls.append([icon, label])
+    if data and len(data[0]) == 2:
+        ls = gtk.ListStore(gtk.gdk.Pixbuf, str)
+    else:
+        ls = gtk.ListStore(gtk.gdk.Pixbuf, str, str)
+
+    for row in data:
+        ls.append(row)
     combo.clear()
     
     combo.set_model(ls)
