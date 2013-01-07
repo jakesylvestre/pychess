@@ -271,8 +271,9 @@ class BoardView (gtk.DrawingArea):
     ###############################
     
     def paintBoxAround(self, move):
-        paintBox = self.cord2RectRelative(move.cord0)
-        paintBox = join(paintBox, self.cord2RectRelative(move.cord1))
+        paintBox = self.cord2RectRelative(move.cord1)
+        if move.flag != DROP:
+            paintBox = join(paintBox, self.cord2RectRelative(move.cord0))
         if move.flag in (KING_CASTLE, QUEEN_CASTLE):
             y = move.cord0.cy
             color = (y == 1)
@@ -889,6 +890,8 @@ class BoardView (gtk.DrawingArea):
         dark_yellow  = (.769, .627, 0, 0.5)
         light_orange = (.961, .475, 0, 0.8)
         dark_orange  = (.808, .361, 0, 0.5)
+        light_green  = (0.337, 0.612, 0.117, 0.8)
+        dark_green   = (0.237, 0.512, 0.17, 0.5)
         
         if self.lastMove.flag in (KING_CASTLE, QUEEN_CASTLE):
             ksq0 = last_board.board.kings[last_board.color]
@@ -904,25 +907,26 @@ class BoardView (gtk.DrawingArea):
             cord_pairs = [ [self.lastMove.cord0, self.lastMove.cord1] ]
 
         for [cord0, cord1] in cord_pairs:
-            rel = self.cord2RectRelative(cord0)
-            if intersects(rect(rel), redrawn):
-                r = self.cord2Rect(cord0)
-                for m in ms:
-                    context.move_to(
-                        r[0]+(d0[m[0]]+wh*m[0])*r[2],
-                        r[1]+(d0[m[1]]+wh*m[1])*r[2])
-                    context.rel_line_to(
-                        0, -wh*r[2]*m[1])
-                    context.rel_curve_to(
-                        0, wh*r[2]*m[1]/2.0,
-                        -wh*r[2]*m[0]/2.0, wh*r[2]*m[1],
-                        -wh*r[2]*m[0], wh*r[2]*m[1])
-                    context.close_path()
-                
-                context.set_source_rgba(*light_yellow)
-                context.fill_preserve()
-                context.set_source_rgba(*dark_yellow)
-                context.stroke()
+            if cord0 is not None:
+                rel = self.cord2RectRelative(cord0)
+                if intersects(rect(rel), redrawn):
+                    r = self.cord2Rect(cord0)
+                    for m in ms:
+                        context.move_to(
+                            r[0]+(d0[m[0]]+wh*m[0])*r[2],
+                            r[1]+(d0[m[1]]+wh*m[1])*r[2])
+                        context.rel_line_to(
+                            0, -wh*r[2]*m[1])
+                        context.rel_curve_to(
+                            0, wh*r[2]*m[1]/2.0,
+                            -wh*r[2]*m[0]/2.0, wh*r[2]*m[1],
+                            -wh*r[2]*m[0], wh*r[2]*m[1])
+                        context.close_path()
+                    
+                    context.set_source_rgba(*light_yellow)
+                    context.fill_preserve()
+                    context.set_source_rgba(*dark_yellow)
+                    context.stroke()
                 
             rel = self.cord2RectRelative(cord1)
             if intersects(rect(rel), redrawn):
@@ -944,6 +948,11 @@ class BoardView (gtk.DrawingArea):
                     context.set_source_rgba(*light_orange)
                     context.fill_preserve()
                     context.set_source_rgba(*dark_orange)
+                    context.stroke()
+                elif cord0 is None: # DROP move
+                    context.set_source_rgba(*light_green)
+                    context.fill_preserve()
+                    context.set_source_rgba(*dark_green)
                     context.stroke()
                 else:
                     context.set_source_rgba(*light_yellow)

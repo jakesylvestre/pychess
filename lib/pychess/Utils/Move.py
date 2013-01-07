@@ -17,7 +17,7 @@ class Move:
             if self.flag in PROMOTIONS:
                 self.promotion = lmove.PROMOTE_PIECE (self.move)
             else: self.promotion = QUEEN
-            self.cord0 = Cord(lmove.FCORD(self.move))
+            self.cord0 = None if self.flag == DROP else Cord(lmove.FCORD(self.move))
             self.cord1 = Cord(lmove.TCORD(self.move))
             
         else:

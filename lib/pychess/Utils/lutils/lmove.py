@@ -149,19 +149,22 @@ def toSAN (board, move, localRepr=False):
     fcord = (move >> 6) & 63
     tcord = move & 63
     
-    fpiece = board.arBoard[fcord]
+    fpiece = fcord if flag == DROP else board.arBoard[fcord]
     tpiece = board.arBoard[tcord]
     
     part0 = ""
     part1 = ""
     
-    if fpiece != PAWN:
+    if fpiece != PAWN or flag == DROP:
         if localRepr:
             part0 += localReprSign[fpiece]
         else:
             part0 += reprSign[fpiece]
     
     part1 = reprCord[tcord]
+
+    if flag == DROP:
+        return "%s@%s%s" % (part0, part1, check_or_mate())
     
     if not fpiece in (PAWN, KING):
         xs = []
@@ -217,7 +220,7 @@ def toSAN (board, move, localRepr=False):
 def parseSAN (board, san):
     """ Parse a Short/Abbreviated Algebraic Notation string """
     notat = san
-    
+
     color = board.color
     
     if notat == "--":
@@ -307,7 +310,10 @@ def parseSAN (board, san):
         
         tcord = cordDic[notat[-2:]]
         notat = notat[:-2]
-
+    
+    if "@" in notat:
+        return newMove(piece, tcord, DROP)
+    
     if piece == KING:
         return newMove(board.kings[color], tcord, flag)
 
@@ -434,24 +440,28 @@ def toAN (board, move, short=False, castleNotation=CASTLE_SAN):
         
         short -- returns the short variant, e.g. f7f8q rather than f7f8=Q
     """
-    fcord = FCORD(move)
-    tcord = TCORD(move)
+    fcord = (move >> 6) & 63
+    tcord = move & 63
+    flag = move >> 12
     
-    if FLAG(move) in (KING_CASTLE, QUEEN_CASTLE):
+    if flag in (KING_CASTLE, QUEEN_CASTLE):
         if castleNotation == CASTLE_SAN:
-            return FLAG(move) == KING_CASTLE and "O-O" or "O-O-O"
+            return flag == KING_CASTLE and "O-O" or "O-O-O"
         elif castleNotation == CASTLE_KR:
             rooks = board.ini_rooks[board.color]
-            tcord = rooks[FLAG(move) == KING_CASTLE and 1 or 0]
+            tcord = rooks[flag == KING_CASTLE and 1 or 0]
         # No treatment needed for CASTLE_KK
     
-    s = reprCord[fcord] + reprCord[tcord]
+    if flag == DROP:
+        s = "%s@%s" % (reprSign[fcord], reprCord[tcord])
+    else:
+        s = reprCord[fcord] + reprCord[tcord]
     
-    if FLAG(move) in PROMOTIONS:
+    if flag in PROMOTIONS:
         if short:
-            s += reprSign[PROMOTE_PIECE(FLAG(move))].lower()
+            s += reprSign[PROMOTE_PIECE(flag)].lower()
         else:
-            s += "=" + reprSign[PROMOTE_PIECE(FLAG(move))]
+            s += "=" + reprSign[PROMOTE_PIECE(flag)]
     return s
 
 ################################################################################

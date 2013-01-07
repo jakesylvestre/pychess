@@ -323,10 +323,11 @@ class LBoard:
     
     def applyMove (self, move):
         flag = move >> 12
+
         fcord = (move >> 6) & 63
         tcord = move & 63
         
-        fpiece = self.arBoard[fcord]
+        fpiece = fcord if flag==DROP else self.arBoard[fcord]
         tpiece = self.arBoard[tcord]
         
         opcolor = 1-self.color
@@ -450,7 +451,10 @@ class LBoard:
                 else:
                     self._move(fcord, tcord, fpiece, self.color)
             else:
-                self._move(fcord, tcord, fpiece, self.color)
+                if flag == DROP:
+                    self._addPiece(tcord, fpiece, self.color)
+                else:
+                    self._move(fcord, tcord, fpiece, self.color)
         
         self.setColor(opcolor)
         self.updateBoard ()
@@ -549,7 +553,7 @@ class LBoard:
         elif flag in PROMOTIONS:
             self._addPiece (fcord, PAWN, color)
         # Put back moved piece
-        else:
+        elif flag != DROP:
             self._addPiece (fcord, tpiece, color)
         
         

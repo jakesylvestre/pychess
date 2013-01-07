@@ -16,7 +16,7 @@ for i in range(64):
 
 shiftedFlags = []
 for i in NORMAL_MOVE, QUEEN_CASTLE, KING_CASTLE, ENPASSANT, \
-            KNIGHT_PROMOTION, BISHOP_PROMOTION, ROOK_PROMOTION, QUEEN_PROMOTION, NULL_MOVE:
+            KNIGHT_PROMOTION, BISHOP_PROMOTION, ROOK_PROMOTION, QUEEN_PROMOTION, NULL_MOVE, DROP:
     shiftedFlags.append(i << 12)
 
 def newMove (fromcord, tocord, flag=NORMAL_MOVE):

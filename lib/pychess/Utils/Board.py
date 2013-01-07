@@ -74,6 +74,12 @@ class Board:
         
         cord0, cord1 = move.cords
         
+        if move.flag == DROP:
+            newPiece = board1[cord1]
+            new.append( newPiece )
+            newPiece.opacity=1
+            return moved, new, dead
+            
         moved.append( (self[cord0], cord0) )
         
         if self[cord1] and move.flag != NULL_MOVE:
@@ -148,17 +154,22 @@ class Board:
             and move will not be applyed, just the high level Piece
             objects will be adjusted.""" 
 
-        assert self[move.cord0], "%s %s" % (move, self.asFen())
+        flag = FLAG(move.move)
+        if flag != DROP:
+            assert self[move.cord0], "%s %s" % (move, self.asFen())
         
         newBoard = self.clone(lboard=lboard)
         if lboard is None:
             newBoard.board.applyMove (move.move)
         
         cord0, cord1 = move.cords
-        flag = FLAG(move.move)
         
-        newBoard[cord1] = newBoard[cord0]
-        if flag != NULL_MOVE:
+        if flag == DROP:
+            newBoard[cord1] = Piece(self.color, (move.move >> 6) & 63)
+        else:
+            newBoard[cord1] = newBoard[cord0]
+            
+        if flag != NULL_MOVE and flag != DROP:
             newBoard[cord0] = None
         
         if self.color == WHITE:
