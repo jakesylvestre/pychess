@@ -8,6 +8,7 @@ from pychess.Utils.Move import *
 from pychess.Utils.Board import Board
 from pychess.Utils.Cord import Cord
 from pychess.Utils.Offer import Offer
+from pychess.Utils.Move import toAN, parseAN, listToMoves
 from pychess.Utils.logic import validate, getMoveKillingKing, getStatus, legalMoveCount
 from pychess.Utils.const import *
 from pychess.Utils.lutils.ldata import MATE_VALUE
@@ -515,15 +516,19 @@ class UCIEngine (ProtocolEngine):
                     self.pondermove = None
                     return
                 self.waitingForMove = False
-                
-                move = parseAN(self.board, parts[1])
+
+                try:
+                    move = parseAN(self.board, parts[1])
+                except ParsingError, e:
+                    self.end(WHITEWON if self.board.color == BLACK else BLACKWON, WON_ADJUDICATION)
+                    return
                 
                 if not validate(self.board, move):
                     # This is critical. To avoid game stalls, we need to resign on
                     # behalf of the engine.
                     log.error("__parseLine: move=%s didn't validate, putting 'del' in returnQueue. self.board=%s\n" % \
                         (repr(move), self.board), self.defname)
-                    self.returnQueue.put('del')
+                    self.end(WHITEWON if self.board.color == BLACK else BLACKWON, WON_ADJUDICATION)
                     return
                 
                 self._setBoard(self.board.move(move))
