@@ -171,7 +171,7 @@ def toSAN (board, move, localRepr=False):
         ys = []
         
         board_clone = board.clone()
-        for altmove in genAllMoves(board_clone):
+        for altmove in genAllMoves(board_clone, drops=False):
             mfcord = FCORD(altmove)
             if board_clone.arBoard[mfcord] == fpiece and \
                     mfcord != fcord and \
@@ -359,13 +359,6 @@ def parseSAN (board, san):
             # we have only one from this kind if piece, so:
             fcord = firstBit(board.boards[color][piece])
             return newMove(fcord, tcord, flag)
-
-        if ffile is not None:
-            fcord = firstBit(board.boards[color][piece] & fileBits[ffile])
-            return newMove(fcord, tcord, flag)
-        elif frank is not None:
-            fcord = firstBit(board.boards[color][piece] & rankBits[frank])
-            return newMove(fcord, tcord, flag)
         else:
             # We find all pieces who could have done it. (If san was legal, there should
             # never be more than one)
@@ -374,6 +367,11 @@ def parseSAN (board, san):
                 return moves.pop()
             else:
                 for move in moves:
+                    f = FCORD(move)
+                    if frank != None and frank != RANK(f):
+                        continue
+                    if ffile != None and ffile != FILE(f):
+                        continue
                     board_clone = board.clone()
                     board_clone.applyMove(move)
                     if board_clone.opIsChecked():

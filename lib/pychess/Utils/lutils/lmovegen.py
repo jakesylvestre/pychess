@@ -109,7 +109,7 @@ def genPieceMoves(board, piece, tcord):
                 moves.add(newMove(fcord, tcord))
         return moves
 
-def genAllMoves (board):
+def genAllMoves (board, drops=True):
     
     blocker = board.blocker
     notblocker = ~blocker
@@ -257,7 +257,7 @@ def genAllMoves (board):
     for move in genCastles(board):
         yield move
 
-    if board.variant == CRAZYHOUSECHESS:
+    if drops and board.variant == CRAZYHOUSECHESS:
         for move in genDrops(board):
             yield move
 

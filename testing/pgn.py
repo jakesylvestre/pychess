@@ -34,17 +34,18 @@ def create_test(lines, result):
 
     return test_expected
 
-filenames = ("chess960rwch", "world_matches")
+filenames = ("chess960rwch", "world_matches", "zh2200plus")
 
-PgnFile1 = load(open('gamefiles/%s.pgn' % filenames[0]))
+PgnFile1 = load(open('gamefiles/%s.pgn' % filenames[2]))
 PgnFile2 = load(open('gamefiles/%s.pgn' % filenames[1]))
+PgnFile3 = load(open('gamefiles/%s.pgn' % filenames[0]))
 
-for filename, pgnfile in zip(filenames, (PgnFile1, PgnFile2)):
+for filename, pgnfile in zip(filenames, (PgnFile1, PgnFile2, PgnFile3)):
     print "Creating test methods for %s" % filename
     for i, game in enumerate(pgnfile.games):
         print "%s/%s" % (i+1, len(pgnfile.games))
-        if i > 20:
-            break
+        #if i > 20:
+        #    break
         model = pgnfile.loadToModel(i)
         result = []
         walk(model.boards[0].board, result)
