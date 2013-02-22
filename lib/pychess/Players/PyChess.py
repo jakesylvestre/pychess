@@ -1,4 +1,4 @@
-#!/usr/bin/pypy -u
+#!/usr/bin/python -u
 
 if __name__ == "__main__":
     print "feature done=0"
@@ -73,9 +73,6 @@ class PyChess:
             if not move or random.randrange(totalWeight) < weight:
                 choice = move
         return choice
-    
-    def __willingToDraw (self):
-        return self.scr <= 0 # FIXME: this misbehaves in all but the simplest use cases
     
     def __go (self, ondone=None):
         """ Finds and prints the best move from the current position """

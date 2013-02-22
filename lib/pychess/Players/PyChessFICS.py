@@ -325,6 +325,9 @@ class PyChessFICS(PyChess):
         self.worker.connect("published", lambda w, msg: self.extendlog(msg))
         self.worker.connect("done", self.__onMoveCalculated)
         self.worker.execute()
+
+    def __willingToDraw (self):
+        return self.scr <= 0 # FIXME: this misbehaves in all but the simplest use cases
     
     def __onGameEnded (self, boardManager, ficsgame):
         self.tellHome(reprResult_long[ficsgame.result] + " " + reprReason_long[ficsgame.reason])

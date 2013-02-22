@@ -338,3 +338,6 @@ class PyChessCECP(PyChess):
     def __analyze (self):
         self.thread = threading.Thread(target=PyChess._PyChess__analyze, args=(self,))
         self.thread.start()
+
+    def __willingToDraw (self):
+        return self.scr <= 0 # FIXME: this misbehaves in all but the simplest use cases
