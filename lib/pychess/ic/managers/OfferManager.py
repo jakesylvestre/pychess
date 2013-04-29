@@ -10,7 +10,7 @@ names = "\w+(?:\([A-Z\*]+\))*"
 
 rated = "(rated|unrated)"
 colors = "(?:\[(white|black)\])?"
-ratings = "\(([0-9\ \-\+]{4}[E P]?)\)"
+ratings = "\(([0-9\ \-\+]{1,4}[E P]?)\)"
 loaded_from = "(?: Loaded from (wild.*))?"
 adjourned = "(?: (\(adjourned\)))?"
 
