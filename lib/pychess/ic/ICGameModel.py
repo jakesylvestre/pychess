@@ -21,7 +21,7 @@ class ICGameModel (GameModel):
         connections[connection].append(connection.connect("disconnected", self.onDisconnected))
         
         rated = "rated" if ficsgame.rated else "unrated"
-        # This is in the format that ficsgame.com writes these PGN headers
+        # This is in the format that ficsgames.org writes these PGN headers
         self.tags["Event"] = "FICS %s %s game" % (rated, ficsgame.game_type.fics_name)
         self.tags["Site"] = "FICS"
 
