@@ -193,6 +193,7 @@ class BoardManager (GObject):
         self.queuedEmits = {}
         self.gamemodelStartedEvents = {}
         self.theGameImPlaying = None
+        self.gamesImObserving = {}
         
         # The ms ivar makes the remaining second fields in style12 use ms
         self.connection.lvm.setVariable("ms", 1)
@@ -641,6 +642,7 @@ class BoardManager (GObject):
         
     def onObserveGameCreated (self, matchlist):
         game = self.parseGame(matchlist, FICSGame, in_progress=True)
+        self.gamesImObserving[game] = None
         self.emit ("obsGameCreated", game)
         
         if game.gameno in self.gamemodelStartedEvents:
@@ -651,18 +653,29 @@ class BoardManager (GObject):
     onObserveGameCreated.BLKCMD = BLKCMD_MOVES
 
     def onGameEnd (self, games, game):
+        log.debug("BM.onGameEnd: %s\n" % game)
         if game == self.theGameImPlaying:
             if game.gameno in self.gamemodelStartedEvents:
                 self.gamemodelStartedEvents[game.gameno].wait()
             self.emit("curGameEnded", game)
             self.theGameImPlaying = None
             del self.gamemodelStartedEvents[game.gameno]
-        else:
+            
+        elif game in self.gamesImObserving:
+            log.debug("BM.onGameEnd: %s: gamesImObserving\n" % game)
             if game.gameno in self.queuedEmits:
+                log.debug("BM.onGameEnd: %s: queuedEmits\n" % game)
                 self.queuedEmits[game.gameno].append(
                     lambda:self.emit("obsGameEnded", game))
-            elif game.gameno in self.gamemodelStartedEvents:
-                self.gamemodelStartedEvents[game.gameno].wait()
+            else:
+                try:
+                    event = self.gamemodelStartedEvents[game.gameno]
+                except KeyError:
+                    pass
+                else:
+                    log.debug("BM.onGameEnd: %s: event.wait()\n" % game)
+                    event.wait()
+                del self.gamesImObserving[game]
                 self.emit("obsGameEnded", game)
     
     def onGamePause (self, match):
@@ -678,6 +691,7 @@ class BoardManager (GObject):
     
     def onUnobserveGame (self, match):
         gameno = int(match.groups()[0])
+        log.debug("BM.onUnobserveGame: gameno: %s\n" % gameno)
         try:
             del self.gamemodelStartedEvents[gameno]
             game = self.connection.games.get_game_by_gameno(gameno)
