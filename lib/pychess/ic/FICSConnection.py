@@ -196,7 +196,8 @@ class FICSConnection (Connection):
             
             # The helper just wants only player and game notifications
             if self.conn:
-                self.client.run_command("set open 0")
+                # set open 1 is a requirement for availinfo notifications
+                self.client.run_command("set open 1")
                 self.client.run_command("set shout 0")
                 self.client.run_command("set cshout 0")
                 self.client.run_command("set seek 0")
