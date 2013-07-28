@@ -171,7 +171,7 @@ class PredictionsTelnet:
                 if len(parts) == 3:
                     id, code, text = parts
                 elif len(parts) == 4:
-                    id, code, text = parts[0], parts[1], parts[3] 
+                    id, code, error_code, text = parts
                 else:
                     print "Posing not supported yet..."
                     return
