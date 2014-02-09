@@ -218,8 +218,19 @@ class BoardManager (GObject):
             "{Game (\d+) \(%s vs\. %s\) (?:Creating|Continuing) %s ([^ ]+) match\."
             % (names, names, ratedexp),
             "", "<12> (.+)")
+
+        self.connection.expect_n_lines (self.onObserveGameCreated,
+            "You are now observing game \d+\.",
+            "Game (\d+): %s %s %s %s %s \w+ \d+ \d+"
+            % (names, ratings, names, ratings, ratedexp))
         
-        self.connection.expect_fromto (self.onObserveGameCreated,
+        self.connection.expect_n_lines (self.onFollowingPlayer,
+            "You will now be following %s's games\." % names,
+            "You are now observing game \d+\.",
+            "Game (\d+): %s %s %s %s %s \w+ \d+ \d+"
+            % (names, ratings, names, ratings, ratedexp))
+        
+        self.connection.expect_fromto (self.onObserveGameMovesReceived,
             "Movelist for game (\d+):", "{Still in progress} \*")
         
         self.connection.expect_line (self.onGamePause,
@@ -325,13 +336,6 @@ class BoardManager (GObject):
         
         return gameno, relation, curcol, ply, wname, bname, wms, bms, gain, lastmove, fen
 
-    def __createGame(self, gameno, wname, bname, wms, bms, fen):
-        wplayer = self.connection.players.get(FICSPlayer(wname))
-        bplayer = self.connection.players.get(FICSPlayer(bname))
-        game = FICSGame(wplayer, bplayer, gameno=gameno, board=FICSBoard(wms, bms, fen=fen))
-        game = self.connection.games.get(game, emit=False)
-        return game
-
     def onStyle12 (self, match):
         style12 = match.groups()[0]
         gameno = int(style12.split()[15])
@@ -340,8 +344,10 @@ class BoardManager (GObject):
             self.queuedStyle12s[gameno].append(style12)
             return
         
-        if self.gamemodelStartedEvents.has_key(gameno):
+        try:
             self.gamemodelStartedEvents[gameno].wait()
+        except KeyError:
+            pass
         
         if gameno in self.castleSigns:
             castleSigns = self.castleSigns[gameno]
@@ -349,17 +355,6 @@ class BoardManager (GObject):
             castleSigns = ("k","q")
         gameno, relation, curcol, ply, wname, bname, wms, bms, gain, lastmove, fen = \
                 self.parseStyle12(style12, castleSigns)
-        
-        if gameno not in self.gamemodelStartedEvents:
-            game = self.connection.games.get_game_by_gameno(gameno)
-            # observe, follow from console
-            if game is not None and game.supported:
-                self.observe(game)
-            else:
-                if relation == IC_POS_OBSERVING:
-                    game = self.__createGame(gameno, wname, bname, wms, bms, fen)
-                    if game.supported:
-                        self.observe(game)
 
         self.emit("boardUpdate", gameno, ply, curcol, lastmove, fen, wname, bname, wms, bms)
     
@@ -706,16 +701,40 @@ class BoardManager (GObject):
         return game
         
     def onObserveGameCreated (self, matchlist):
-        game = self.parseGame(matchlist, FICSGame, in_progress=True)
-        self.gamesImObserving[game] = None
-        self.emit ("obsGameCreated", game)
+        gameno, wname, wrating, bname, brating, rated = matchlist[1].groups()
+        wplayer = self.connection.players.get(FICSPlayer(wname))
+        bplayer = self.connection.players.get(FICSPlayer(bname))
+        game = FICSGame(wplayer, bplayer, gameno=int(gameno))
+        game = self.connection.games.get(game, emit=False)
         
         if game.gameno in self.gamemodelStartedEvents:
+            log.warning("%s already in gamemodelstartedevents" % game.gameno)
+            return
+        
+        self.gamesImObserving[game] = None
+        self.queuedStyle12s[game.gameno] = []
+        self.queuedEmits[game.gameno] = []
+        self.gamemodelStartedEvents[game.gameno] = threading.Event()
+
+        # FICS doesn't send the move list after 'observe' and 'follow' commands
+        self.connection.client.run_command("moves %d" % game.gameno)
+    onObserveGameCreated.BLKCMD = BLKCMD_OBSERVE
+
+    def onFollowingPlayer (self, matchlist):
+        self.onObserveGameCreated(matchlist[1:])
+    onFollowingPlayer.BLKCMD = BLKCMD_FOLLOW
+    
+    def onObserveGameMovesReceived (self, matchlist):
+        game = self.parseGame(matchlist, FICSGame, in_progress=True)
+        self.emit ("obsGameCreated", game)
+        try:
             self.gamemodelStartedEvents[game.gameno].wait()
+        except KeyError:
+            pass
         for emit in self.queuedEmits[game.gameno]:
             emit()        
         del self.queuedEmits[game.gameno]
-    onObserveGameCreated.BLKCMD = BLKCMD_MOVES
+    onObserveGameMovesReceived.BLKCMD = BLKCMD_MOVES
 
     def onGameEnd (self, games, game):
         log.debug("BM.onGameEnd: %s" % game)
@@ -782,12 +801,7 @@ class BoardManager (GObject):
         self.connection.client.run_command("flag")
     
     def observe (self, game):
-        if not game.gameno in self.gamemodelStartedEvents:
-            self.queuedStyle12s[game.gameno] = []
-            self.queuedEmits[game.gameno] = []
-            self.gamemodelStartedEvents[game.gameno] = threading.Event()
-            self.connection.client.run_command("observe %d" % game.gameno)
-            self.connection.client.run_command("moves %d" % game.gameno)
+        self.connection.client.run_command("observe %d" % game.gameno)
 
     def unobserve (self, game):
         if game.gameno is not None:
