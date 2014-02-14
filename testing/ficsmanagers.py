@@ -70,9 +70,12 @@ class EmittingTestCase(unittest.TestCase):
         self.connection = DummyConnection()
         self.connection.players = FICSPlayers(self.connection)
         self.connection.games = FICSGames(self.connection)
+        self.connection.seeks = FICSSeeks(self.connection)
+        self.connection.challenges = FICSChallenges(self.connection)
         # The real one freezes
         #self.connection.lvm = ListAndVarManager(self.connection)
         self.connection.lvm = DummyVarManager()
+        self.connection.hm = HelperManager(self.connection, self.connection)
         self.connection.em = ErrorManager(self.connection)
         self.connection.glm = SeekManager(self.connection)
         self.connection.bm = BoardManager(self.connection)
@@ -86,6 +89,8 @@ class EmittingTestCase(unittest.TestCase):
         self.connection.bm.start()
         self.connection.players.start()
         self.connection.games.start()
+        self.connection.seeks.start()
+        self.connection.challenges.start()
         
     def runAndAssertEquals(self, signal, lines, expectedResults):
         self.args = None
@@ -103,7 +108,28 @@ class EmittingTestCase(unittest.TestCase):
         
         self.assertNotEqual(self.args, None, "%s signal wasn't sent" % signal)
         self.assertEqual(self.args, expectedResults)
-
+        
+    def runAndAssertEqualsNotify(self, obj, prop, lines, expectedResults):
+        self.args = None
+        self.prop_value = None
+        def handler(obj, *args):
+            self.args = args
+            self.prop_value = getattr(obj, prop)
+        obj.connect('notify::'+prop, handler)
+        random.shuffle(self.connection.client.predictions)
+        
+        for line in lines:
+            self.connection.putline(line)
+        while True:
+            try:
+                self.connection.process_line()
+            except Queue.Empty:
+                break
+        
+        self.assertNotEqual(self.args, None,
+            "no \'%s\' property change notification for %s" % (prop, repr(obj)))
+        self.assertEqual(self.prop_value, expectedResults)
+        
 ###############################################################################
 # AdjournManager
 ###############################################################################
@@ -409,7 +435,38 @@ class BoardManagerTests(EmittingTestCase):
         me.game = game
         opponent.game = game
         self.runAndAssertEquals("playGameCreated", lines, (game,))
+
+class GamesTests(EmittingTestCase):
+    def setUp (self):
+        EmittingTestCase.setUp(self)
+        self.manager = self.connection.games
     
+    def test1 (self):
+        """Make sure private game messages are caught"""
+        lines = ["{Game 12 (VrtX vs. pulsoste) Creating rated crazyhouse match.}"]
+        game = FICSGame(FICSPlayer('VrtX'), FICSPlayer('pulsoste'), gameno=12,
+            rated=True, game_type=GAME_TYPES['crazyhouse'], private=False)
+        self.runAndAssertEquals("FICSGameCreated", lines, (game,))
+        
+        lines = [BLOCK_START + '218' + BLOCK_SEPARATOR + '80' + BLOCK_SEPARATOR,
+                 "Sorry, game 12 is a private game.",
+                 BLOCK_END]
+        game = self.connection.games[game]
+        self.runAndAssertEqualsNotify(game, 'private', lines, True)
+
+class HelperManagerTests(EmittingTestCase):
+    def setUp (self):
+        EmittingTestCase.setUp(self)
+        self.manager = self.connection.hm
+    
+    def test1 (self):
+        """ Make sure ratings <1000 are caught """
+        lines = ["Artmachine Blitz ( 819), Std (1276), Wild (----), Light(----), Bug(----)",
+                 "is now available for matches\."]
+        player = self.connection.players.get(FICSPlayer('Artmachine'))
+        self.runAndAssertEqualsNotify(player.ratings[TYPE_BLITZ], 'elo', lines,
+                                      819)
+        
 class OfferManagerTests(EmittingTestCase):
     
     def setUp (self):
