@@ -159,6 +159,8 @@ class HintTab:
                 if check.get_active():
                     for gmwidg in gameDic.keys():
                         gmwidg.gamemodel.restart_analyzer(HINT)
+                        if not widgets["hint_mode"].get_active():
+                            gmwidg.gamemodel.pause_analyzer(HINT)
                 else:
                     for gmwidg in gameDic.keys():
                         gmwidg.gamemodel.remove_analyzer(HINT)
@@ -174,6 +176,8 @@ class HintTab:
                 if check.get_active():
                     for gmwidg in gameDic.keys():
                         gmwidg.gamemodel.restart_analyzer(SPY)
+                        if not widgets["spy_mode"].get_active():
+                            gmwidg.gamemodel.pause_analyzer(SPY)
                 else:
                     for gmwidg in gameDic.keys():
                         gmwidg.gamemodel.remove_analyzer(SPY)
@@ -202,11 +206,6 @@ class HintTab:
                     index = 0
                 combobox.set_active(index)
             
-            replace_analyzers = False
-            if widgets[show_arrow_check].get_active() is True and \
-                    widgets[ana_check].get_active() is True:
-                replace_analyzers = True
-            
             from pychess.Main import gameDic
             for gmwidg in gameDic.keys():
                 spectators = gmwidg.gamemodel.spectators
@@ -215,9 +214,10 @@ class HintTab:
                 if analyzer_type in spectators and \
                         spectators[analyzer_type].md5 != md5:
                     gmwidg.gamemodel.remove_analyzer(analyzer_type)
-                    if replace_analyzers:
-                        gmwidg.gamemodel.start_analyzer(analyzer_type)
-        
+                    gmwidg.gamemodel.start_analyzer(analyzer_type)
+                    if not widgets[show_arrow_check].get_active():
+                        gmwidg.gamemodel.pause_analyzer(analyzer_type)
+                        
         uistuff.keep(widgets["ana_combobox"], "ana_combobox", get_value,
             lambda combobox, value: set_value(combobox, value, "hint_mode",
                                               "analyzer_check", HINT))
